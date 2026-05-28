@@ -1,0 +1,15 @@
+package.json
+package-lock.json
+node_modules
+src
+extension
+dist
+.github
+scripts
+index.html
+vite.config.ts
+tsconfig.json
+.env
+.env.example
+README.md
+LICENSE

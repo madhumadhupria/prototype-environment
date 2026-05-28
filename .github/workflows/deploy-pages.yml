@@ -25,8 +25,16 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: |
-          npm ci
-          test -f node_modules/vite/package.json
+          set -e
+          for attempt in 1 2 3 4 5; do
+            echo "Install attempt $attempt"
+            if npm install --no-fund --no-audit; then
+              test -f node_modules/vite/package.json
+              exit 0
+            fi
+            sleep 15
+          done
+          exit 1
       - run: npm run build
         env:
           MODEL_URN: ${{ vars.MODEL_URN }}
