@@ -14,20 +14,26 @@ export const CAD_BIM_GRID = {
 	targetCellSize: 1,
 	minDivisions: 20,
 	maxDivisions: 64,
-	minorColor: 0x9aa3b2,
-	majorColor: 0x6b7788,
-	edgeColor: 0x4a5568,
-	lineOpacity: 0.62,
-	edgeOpacity: 0.38,
+	minorColor: 0x4a6fa5,
+	majorColor: 0x355f8a,
+	edgeColor: 0x254a6e,
+	lineOpacity: 0.52,
+	edgeOpacity: 0.36,
 	majorStep: 5,
 	/** Slight lift above exact floor to reduce z-fighting with the model base. */
-	floorLift: 0.05,
-	/** Full-opacity core (0–1 of half-extent); fades toward fadeMinOpacity at the edge. */
-	fadeCoreRatio: 0.26,
+	floorLift: 0.02,
+	/** Hide grid when the camera drops below this offset from the floor plane. */
+	belowCameraEpsilon: 0.15,
+	/** Back-face ground cap — blocks seeing through the floor from underneath. */
+	groundOccluderScale: 1.35,
+	/** Full-opacity core (0–1 of half-extent); fades toward transparent at the edge. */
+	fadeCoreRatio: 0.42,
 	fadeMinOpacity: 0,
 	/** Sub-segments per grid line for smooth opacity falloff toward the boundary. */
-	fadeSegmentsPerLine: 8,
-	fadeOpacityBuckets: 12,
+	fadeSegmentsPerLine: 12,
+	fadeOpacityBuckets: 16,
+	/** Segments below this opacity are omitted (prevents white halos at the edge). */
+	fadeCutoffOpacity: 0.04,
 } as const;
 
 export const CAD_BIM_LIGHTING = {

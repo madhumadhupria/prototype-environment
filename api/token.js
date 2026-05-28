@@ -1,14 +1,16 @@
 /** Vercel serverless — issues 2-legged APS tokens. Set APS_CLIENT_ID and APS_CLIENT_SECRET in Vercel env. */
 
-const ALLOWED_ORIGINS = [
-	'https://madhumadhupria.github.io',
-	'http://localhost:5173',
-	'http://127.0.0.1:5173',
-];
+const isAllowedOrigin = (origin) => {
+	if (!origin) return false;
+	if (origin === 'https://madhumadhupria.github.io') return true;
+	if (origin.endsWith('.github.io')) return true;
+	if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) return true;
+	return /^https:\/\/prototype-environment[-a-z0-9]*\.vercel\.app$/.test(origin);
+};
 
 export default async function handler(req, res) {
 	const origin = req.headers.origin;
-	if (origin && ALLOWED_ORIGINS.includes(origin)) {
+	if (origin && isAllowedOrigin(origin)) {
 		res.setHeader('Access-Control-Allow-Origin', origin);
 	}
 	res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');

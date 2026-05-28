@@ -19,10 +19,15 @@ const loadEnv = () => {
 
 loadEnv();
 
+const readEnv = (key, fallback) => {
+	const value = process.env[key] ?? '';
+	return value.trim() !== '' ? value.trim() : fallback;
+};
+
 const config = {
-	modelUrn: process.env.MODEL_URN ?? process.env.VITE_MODEL_URN ?? '',
-	tokenUrl: process.env.TOKEN_URL ?? process.env.VITE_TOKEN_URL ?? '/api/token',
-	apsEnv: process.env.APS_ENV ?? process.env.VITE_APS_ENV ?? 'AutodeskProduction',
+	modelUrn: readEnv('MODEL_URN', readEnv('VITE_MODEL_URN', '')),
+	tokenUrl: readEnv('TOKEN_URL', readEnv('VITE_TOKEN_URL', '/api/token')),
+	apsEnv: readEnv('APS_ENV', readEnv('VITE_APS_ENV', 'AutodeskProduction')),
 };
 
 writeFileSync(resolve(process.cwd(), 'public/config.json'), `${JSON.stringify(config, null, 2)}\n`);

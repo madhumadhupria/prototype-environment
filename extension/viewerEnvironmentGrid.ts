@@ -1,6 +1,6 @@
 import { getLmvThree } from './lmvThree';
 import { getModelWorldBounds, getModelWorldUp } from './viewerEnvironmentBounds';
-import { CAD_BIM_GRID, VIEWER_ENVIRONMENT_OVERLAY_SCENE } from './viewerEnvironmentSpec';
+import { CAD_BIM_BACKGROUND, CAD_BIM_GRID, VIEWER_ENVIRONMENT_OVERLAY_SCENE } from './viewerEnvironmentSpec';
 
 export interface GridPlacement {
 	anchor: THREE.Vector3;
@@ -10,7 +10,21 @@ export interface GridPlacement {
 	divisions: number;
 	step: number;
 	footprintCorners: THREE.Vector3[];
+	/** Point on the floor plane (includes floorLift). */
+	floorPoint: THREE.Vector3;
+	floorUp: THREE.Vector3;
 }
+
+const GRID_GROUP_NAME = 'priyam-cad-bim-grid';
+const OCCLUDER_NAME = 'priyam-cad-bim-ground-occluder';
+
+const gridAnchorState = new WeakMap<
+	Autodesk.Viewing.GuiViewer3D,
+	{ handler: () => void; group: THREE.Group; placement: GridPlacement }
+>();
+
+const backgroundColorHex = (): number =>
+	(CAD_BIM_BACKGROUND.r << 16) | (CAD_BIM_BACKGROUND.g << 8) | CAD_BIM_BACKGROUND.b;
 
 const getHorizontalAxes = (
 	up: THREE.Vector3,
@@ -45,12 +59,12 @@ const getBoxCorners = (box: THREE.Box3): THREE.Vector3[] => {
 const projectToFloor = (point: THREE.Vector3, up: THREE.Vector3, floorW: number, lift: number): THREE.Vector3 =>
 	point.clone().add(up.clone().multiplyScalar(floorW + lift - point.dot(up)));
 
-/** 1 at grid center → min opacity at outer edge (never fully zero). */
+/** 1 at grid center → 0 at outer edge (radial vignette). */
 const gridEdgeFade = (u: number, v: number, halfExtent: number): number => {
 	if (!Number.isFinite(halfExtent) || halfExtent <= 0) return 1;
-	const du = Math.abs(u - halfExtent) / halfExtent;
-	const dv = Math.abs(v - halfExtent) / halfExtent;
-	const edge = Math.max(du, dv);
+	const nx = (u - halfExtent) / halfExtent;
+	const ny = (v - halfExtent) / halfExtent;
+	const edge = Math.min(1, Math.hypot(nx, ny));
 	if (edge <= CAD_BIM_GRID.fadeCoreRatio) return 1;
 	if (edge >= 1) return CAD_BIM_GRID.fadeMinOpacity;
 	const t = (edge - CAD_BIM_GRID.fadeCoreRatio) / (1 - CAD_BIM_GRID.fadeCoreRatio);
@@ -59,9 +73,51 @@ const gridEdgeFade = (u: number, v: number, halfExtent: number): number => {
 };
 
 const quantizeOpacity = (opacity: number): number => {
+	if (opacity < CAD_BIM_GRID.fadeCutoffOpacity) return 0;
 	const buckets = CAD_BIM_GRID.fadeOpacityBuckets;
 	const step = 1 / buckets;
-	return Math.max(step, Math.round(opacity / step) * step);
+	const quantized = Math.round(opacity / step) * step;
+	return quantized < CAD_BIM_GRID.fadeCutoffOpacity ? 0 : quantized;
+};
+
+const isCameraAboveFloor = (viewer: Autodesk.Viewing.GuiViewer3D, placement: GridPlacement): boolean => {
+	const camera = viewer.impl.camera as THREE.Camera & { position?: THREE.Vector3 };
+	if (!camera?.position) return true;
+	const offset = camera.position.clone().sub(placement.floorPoint);
+	return offset.dot(placement.floorUp) >= -CAD_BIM_GRID.belowCameraEpsilon;
+};
+
+const updateGridGroundVisibility = (
+	viewer: Autodesk.Viewing.GuiViewer3D,
+	group: THREE.Group,
+	placement: GridPlacement
+): void => {
+	const above = isCameraAboveFloor(viewer, placement);
+	const gridLines = group.getObjectByName(GRID_GROUP_NAME);
+	const occluder = group.getObjectByName(OCCLUDER_NAME);
+	if (gridLines) gridLines.visible = above;
+	if (occluder) occluder.visible = !above;
+};
+
+const bindGridGroundAnchor = (
+	viewer: Autodesk.Viewing.GuiViewer3D,
+	group: THREE.Group,
+	placement: GridPlacement
+): void => {
+	unbindGridGroundAnchor(viewer);
+	const handler = (): void => {
+		updateGridGroundVisibility(viewer, group, placement);
+	};
+	viewer.addEventListener(Autodesk.Viewing.CAMERA_CHANGE_EVENT, handler);
+	gridAnchorState.set(viewer, { handler, group, placement });
+	updateGridGroundVisibility(viewer, group, placement);
+};
+
+const unbindGridGroundAnchor = (viewer: Autodesk.Viewing.GuiViewer3D): void => {
+	const state = gridAnchorState.get(viewer);
+	if (!state) return;
+	viewer.removeEventListener(Autodesk.Viewing.CAMERA_CHANGE_EVENT, state.handler);
+	gridAnchorState.delete(viewer);
 };
 
 /** Square grid on the floor plane, centered on the model footprint. */
@@ -76,13 +132,16 @@ export const getGridPlacement = (viewer: Autodesk.Viewing.GuiViewer3D): GridPlac
 	const total = half * 2;
 
 	const buildFallback = (): GridPlacement => {
-		const floorCenter = up.clone().multiplyScalar(CAD_BIM_GRID.floorLift);
+		const floorW = box.isEmpty() ? 0 : Math.min(...getBoxCorners(box).map(c => c.dot(up)));
+		const floorCenter = box.isEmpty()
+			? up.clone().multiplyScalar(CAD_BIM_GRID.floorLift)
+			: projectToFloor(box.getCenter(new THREE.Vector3()), up, floorW, CAD_BIM_GRID.floorLift);
 		const anchor = floorCenter
 			.clone()
 			.sub(axisU.clone().multiplyScalar(half))
 			.sub(axisV.clone().multiplyScalar(half));
-		const lift = up.clone().multiplyScalar(CAD_BIM_GRID.floorLift + 0.02);
-		const c0 = anchor.clone().add(lift);
+		const cornerAt = (u: number, v: number): THREE.Vector3 =>
+			floorCenter.clone().add(axisU.clone().multiplyScalar(u)).add(axisV.clone().multiplyScalar(v));
 		return {
 			anchor,
 			axisU: axisU.clone(),
@@ -91,12 +150,14 @@ export const getGridPlacement = (viewer: Autodesk.Viewing.GuiViewer3D): GridPlac
 			divisions: CAD_BIM_GRID.minDivisions,
 			step: total / CAD_BIM_GRID.minDivisions,
 			footprintCorners: [
-				c0,
-				c0.clone().add(axisU.clone().multiplyScalar(total)),
-				c0.clone().add(axisU.clone().multiplyScalar(total)).add(axisV.clone().multiplyScalar(total)),
-				c0.clone().add(axisV.clone().multiplyScalar(total)),
-				c0.clone(),
+				cornerAt(-half, -half),
+				cornerAt(half, -half),
+				cornerAt(half, half),
+				cornerAt(-half, half),
+				cornerAt(-half, -half),
 			],
+			floorPoint: floorCenter.clone(),
+			floorUp: up.clone(),
 		};
 	};
 
@@ -139,7 +200,6 @@ export const getGridPlacement = (viewer: Autodesk.Viewing.GuiViewer3D): GridPlac
 	const uCenter = (uMin + uMax) / 2;
 	const vCenter = (vMin + vMax) / 2;
 
-	// Center on footprint (not world AABB center) so grid extends equally behind/in front.
 	const floorRef = floorPoints[0];
 	const refU = floorRef.dot(axisU);
 	const refV = floorRef.dot(axisV);
@@ -160,7 +220,6 @@ export const getGridPlacement = (viewer: Autodesk.Viewing.GuiViewer3D): GridPlac
 	const cornerAt = (u: number, v: number): THREE.Vector3 =>
 		floorCenter
 			.clone()
-			.add(up.clone().multiplyScalar(0.02))
 			.add(axisU.clone().multiplyScalar(u - uCenter))
 			.add(axisV.clone().multiplyScalar(v - vCenter));
 
@@ -178,6 +237,8 @@ export const getGridPlacement = (viewer: Autodesk.Viewing.GuiViewer3D): GridPlac
 			cornerAt(uMin, vMax),
 			cornerAt(uMin, vMin),
 		],
+		floorPoint: floorCenter.clone(),
+		floorUp: up.clone(),
 	};
 };
 
@@ -226,6 +287,9 @@ const createLineSegments = (
 		opacity,
 		depthWrite: false,
 		depthTest: true,
+		polygonOffset: true,
+		polygonOffsetFactor: -2,
+		polygonOffsetUnits: -2,
 	});
 	const lines = new THREE.LineSegments(geometry, material);
 	lines.frustumCulled = false;
@@ -242,9 +306,32 @@ const pointOnGrid = (
 	v: number
 ): THREE.Vector3 => anchor.clone().add(axisU.clone().multiplyScalar(u)).add(axisV.clone().multiplyScalar(v));
 
-const createCadBimGrid = (placement: GridPlacement, THREE: typeof window.THREE): THREE.Group => {
+const createGroundOccluder = (placement: GridPlacement, THREE: typeof window.THREE): THREE.Mesh => {
+	const size = placement.halfExtent * 2 * CAD_BIM_GRID.groundOccluderScale;
+	const geometry = new THREE.PlaneGeometry(size, size);
+	const material = new THREE.MeshBasicMaterial({
+		color: backgroundColorHex(),
+		side: THREE.BackSide,
+		depthWrite: true,
+		depthTest: true,
+	});
+	const mesh = new THREE.Mesh(geometry, material);
+	mesh.name = OCCLUDER_NAME;
+	mesh.frustumCulled = false;
+	mesh.renderOrder = 48;
+	mesh.visible = false;
+	disableMeshRaycast(mesh);
+
+	const planeNormal = new THREE.Vector3(0, 0, 1);
+	const align = new THREE.Quaternion().setFromUnitVectors(planeNormal, placement.floorUp);
+	mesh.quaternion.copy(align);
+	mesh.position.copy(placement.floorPoint);
+	return mesh;
+};
+
+const createCadBimGridLines = (placement: GridPlacement, THREE: typeof window.THREE): THREE.Group => {
 	const group = new THREE.Group();
-	group.name = 'priyam-cad-bim-grid';
+	group.name = GRID_GROUP_NAME;
 	group.frustumCulled = false;
 	group.renderOrder = 50;
 
@@ -347,6 +434,15 @@ const createCadBimGrid = (placement: GridPlacement, THREE: typeof window.THREE):
 	return group;
 };
 
+const createCadBimGrid = (placement: GridPlacement, THREE: typeof window.THREE): THREE.Group => {
+	const root = new THREE.Group();
+	root.name = 'priyam-cad-bim-grid-root';
+	root.frustumCulled = false;
+	root.add(createGroundOccluder(placement, THREE));
+	root.add(createCadBimGridLines(placement, THREE));
+	return root;
+};
+
 export const ensureCadBimGrid = (viewer: Autodesk.Viewing.GuiViewer3D): void => {
 	const THREE = getLmvThree();
 	if (!THREE) return;
@@ -360,7 +456,9 @@ export const ensureCadBimGrid = (viewer: Autodesk.Viewing.GuiViewer3D): void => 
 			impl.createOverlayScene(VIEWER_ENVIRONMENT_OVERLAY_SCENE);
 		}
 		impl.clearOverlay(VIEWER_ENVIRONMENT_OVERLAY_SCENE);
-		impl.addOverlay(VIEWER_ENVIRONMENT_OVERLAY_SCENE, createCadBimGrid(placement, THREE));
+		const gridRoot = createCadBimGrid(placement, THREE);
+		impl.addOverlay(VIEWER_ENVIRONMENT_OVERLAY_SCENE, gridRoot);
+		bindGridGroundAnchor(viewer, gridRoot, placement);
 		viewer.impl.invalidate(true, false, false);
 	} catch (error) {
 		console.error('ViewerEnvironment: floor grid failed', error);
@@ -368,6 +466,7 @@ export const ensureCadBimGrid = (viewer: Autodesk.Viewing.GuiViewer3D): void => 
 };
 
 export const removeCadBimGrid = (viewer: Autodesk.Viewing.GuiViewer3D): void => {
+	unbindGridGroundAnchor(viewer);
 	const impl = viewer.impl;
 	if (!impl.overlayScenes[VIEWER_ENVIRONMENT_OVERLAY_SCENE]) return;
 	impl.clearOverlay(VIEWER_ENVIRONMENT_OVERLAY_SCENE);
