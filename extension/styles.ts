@@ -167,6 +167,9 @@ const CSS = `
 
 /* --- Toolbar SVG icons: same slot as native font icons (28×28 button, 24px glyph) --- */
 .adsk-viewing-viewer .adsk-button-icon.priyam-viewer-env-svg-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	background: none;
 	background-image: none;
 	background-color: transparent;
@@ -180,9 +183,9 @@ const CSS = `
 	display: block;
 	width: 1em;
 	height: 1em;
+	flex-shrink: 0;
 	fill: none;
 	pointer-events: none;
-	vertical-align: top;
 }
 
 /* --- 2D/3D sheet alignment: subtle workflow emphasis (no global light-mode reskin) --- */

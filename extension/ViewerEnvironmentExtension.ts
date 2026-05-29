@@ -7,7 +7,7 @@ import {
 } from './viewerBuildingPalettes';
 import { wireNativeSectionToolbar } from './lmvNativeSection';
 import { deactivateSectionBox, isSectionBoxActive, toggleSectionBox } from './viewerEnvironmentSection';
-import { setColorSchemeToolbarIcon, setEnvironmentToolbarIcon, setSectionBoxToolbarIcon } from './toolbarIcons';
+import { setColorSchemeToolbarIcon, setEnvironmentToolbarIcon } from './toolbarIcons';
 import { ensureStylesInjected } from './styles';
 import { isViewerModelReady } from './viewerEnvironmentLifecycle';
 import { applyCadBimHomeView, captureCadBimHomeViewArray } from './viewerEnvironmentCamera';
@@ -199,7 +199,8 @@ class ViewerEnvironmentExtension extends Autodesk.Viewing.Extension {
 
 		this.sectionBoxButton = new Autodesk.Viewing.UI.Button(SECTION_BOX_BUTTON_ID);
 		this.sectionBoxButton.setToolTip('Section box');
-		setSectionBoxToolbarIcon(this.sectionBoxButton.icon);
+		// LMV native section-box glyph (firefly Section extension — same as toolbar-sectionTool-box).
+		this.sectionBoxButton.setIcon('adsk-icon-box');
 		this.sectionBoxButton.onClick = (): void => {
 			void this.onSectionBoxToggle();
 		};
