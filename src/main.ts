@@ -74,7 +74,6 @@ const init = async (): Promise<void> => {
 
 			const viewer = new Autodesk.Viewing.GuiViewer3D(container, {
 				disabledExtensions: {
-					measure: true,
 					section: true,
 					'Autodesk.Geolocation': true,
 				},
@@ -82,6 +81,10 @@ const init = async (): Promise<void> => {
 			viewer.start();
 			applyCadBimBackdrop(viewer);
 			(window as unknown as { viewer?: Autodesk.Viewing.GuiViewer3D }).viewer = viewer;
+
+			void viewer.loadExtension('Autodesk.Measure').catch(() => {
+				// Measure toolbar may already be loaded by GuiViewer3D defaults.
+			});
 
 			void viewer.loadExtension(VIEWER_ENVIRONMENT_EXTENSION_ID).catch((error: unknown) => {
 				const message = error instanceof Error ? error.message : String(error);
