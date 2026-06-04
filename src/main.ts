@@ -1,6 +1,7 @@
 import '../extension/ViewerEnvironmentExtension';
 import { VIEWER_ENVIRONMENT_EXTENSION_ID } from '../extension/ViewerEnvironmentExtension';
 import { applyCadBimBackdrop } from '../extension/applyViewerEnvironment';
+import { attachMeasureDistanceVisualFeedback } from '../extension/measureDistanceVisualFeedback';
 import { loadConfig } from './config';
 
 const statusEl = document.getElementById('status');
@@ -80,6 +81,7 @@ const init = async (): Promise<void> => {
 			});
 			viewer.start();
 			applyCadBimBackdrop(viewer);
+			attachMeasureDistanceVisualFeedback(viewer);
 			(window as unknown as { viewer?: Autodesk.Viewing.GuiViewer3D }).viewer = viewer;
 
 			void viewer.loadExtension('Autodesk.Measure').catch(() => {
