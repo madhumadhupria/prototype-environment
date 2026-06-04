@@ -1,29 +1,31 @@
-// Snap feedback config (scale-measure-prototype visuals).
+// Snap feedback config — yellow palette aligned with LMV measure snap cursor.
+
+/** LMV default snap orange is ~0xff7700; we tune to a clearer yellow. */
+export const MEASURE_SNAP_YELLOW = {
+	hex: 0xffd200,
+	hexCorrected: 0xffa800,
+	stroke: '#ffd200',
+} as const;
 
 export const MEASURE_SNAP_RING = {
-	color: 'rgba(92, 176, 255,',
-	stroke: '#5cb0ff',
-	innerColor: 'rgba(92, 176, 255, 0.45)',
 	pulseDurationMs: 300,
-	pulseStartRadius: 8,
-	pulseExpand: 18,
-	breatheMin: 7,
-	breatheMax: 11,
+	pulseStartPx: 8,
+	pulseExpandPx: 18,
+	breatheMinPx: 6,
+	breatheMaxPx: 11,
 	breatheSpeed: 0.014,
 	ringCount: 3,
 	ringStaggerMs: 65,
-	squareSize: 7,
+	lineWidthPx: 2,
 } as const;
 
-/** Ghost alignment / suggestion lines (dashed, Figma-style). */
 export const MEASURE_GHOST_GUIDE = {
-	activeColor: 'rgba(92, 176, 255, 0.82)',
-	faintColor: 'rgba(92, 176, 255, 0.38)',
-	crosshairColor: 'rgba(148, 160, 173, 0.55)',
-	dash: [3, 5] as const,
-	lineWidth: 1,
+	opacity: 0.42,
+	faintOpacity: 0.22,
+	dashSizePx: 3,
+	gapSizePx: 5,
+	lineWidthPx: 1,
 	alignTolerancePx: 7,
-	/** Draw crosshair guides at these snap categories. */
 	crosshairAt: new Set(['endpoint', 'intersection', 'midpoint']),
 } as const;
 
@@ -38,11 +40,13 @@ export const MEASURE_SNAP_AUDIBLE = new Set(['endpoint', 'intersection', 'midpoi
 
 export const MEASURE_COMMIT_CHORD_HZ = [660, 990] as const;
 
-export const MEASURE_OVERLAY_CLASS = 'priyam-measure-snap-overlay';
+export const PULSE_OVERLAY_SCENE = 'priyam-measure-snap-pulse';
+export const GHOST_OVERLAY_SCENE = 'priyam-measure-snap-ghost';
 
 export type SnapCategory = 'endpoint' | 'intersection' | 'midpoint' | 'on' | null;
 
 export type GhostGuide =
 	| { kind: 'vertical'; x: number; faint?: boolean }
 	| { kind: 'horizontal'; y: number; faint?: boolean }
-	| { kind: 'segment'; x1: number; y1: number; x2: number; y2: number; dashed?: boolean };
+	| { kind: 'segment'; x1: number; y1: number; x2: number; y2: number; dashed?: boolean }
+	| { kind: 'worldSegment'; a: THREE.Vector3; b: THREE.Vector3; dashed?: boolean };
