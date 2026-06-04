@@ -34,7 +34,10 @@ export const MEASURE_SNAP_AUDIO_HZ: Record<string, number> = {
 	intersection: 780,
 	midpoint: 670,
 	on: 560,
+	origin: 820,
 };
+
+export const MEASURE_ORIGIN_AUDIO_HZ = MEASURE_SNAP_AUDIO_HZ.origin;
 
 export const MEASURE_SNAP_AUDIBLE = new Set(['endpoint', 'intersection', 'midpoint']);
 

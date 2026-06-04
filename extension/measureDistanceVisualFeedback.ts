@@ -7,6 +7,7 @@ import {
 	GhostGuide,
 	MEASURE_COMMIT_CHORD_HZ,
 	MEASURE_GHOST_GUIDE,
+	MEASURE_ORIGIN_AUDIO_HZ,
 	MEASURE_SNAP_AUDIO_HZ,
 	MEASURE_SNAP_AUDIBLE,
 	MEASURE_SNAP_RING,
@@ -430,12 +431,11 @@ const drawGhostGuides = (
 	}
 };
 
-const drawSnapPulseRings = (
+const drawLiveBreatheRings = (
 	viewer: Autodesk.Viewing.GuiViewer3D,
 	center: THREE.Vector3,
 	scale: number,
-	now: number,
-	pulses: PulseBurst[]
+	now: number
 ): void => {
 	const breatheMid = (MEASURE_SNAP_RING.breatheMinPx + MEASURE_SNAP_RING.breatheMaxPx) / 2;
 	const breatheAmp = (MEASURE_SNAP_RING.breatheMaxPx - MEASURE_SNAP_RING.breatheMinPx) / 2;
@@ -451,6 +451,16 @@ const drawSnapPulseRings = (
 		0.38,
 		MEASURE_SNAP_RING.lineWidthPx
 	);
+};
+
+const drawSnapPulseRings = (
+	viewer: Autodesk.Viewing.GuiViewer3D,
+	center: THREE.Vector3,
+	scale: number,
+	now: number,
+	pulses: PulseBurst[]
+): void => {
+	drawLiveBreatheRings(viewer, center, scale, now);
 
 	for (const pulse of pulses) {
 		const expandPx =
@@ -477,7 +487,9 @@ export const attachMeasureDistanceVisualFeedback = (
 
 	let rafId = 0;
 	let lastSnapId: string | null = null;
+	let lastOriginKey: string | null = null;
 	const pulses: PulseBurst[] = [];
+	const originPulses: PulseBurst[] = [];
 
 	const getMeasureTool = (): MeasureToolLike | undefined => {
 		const measureExt = viewer.getExtension('Autodesk.Measure') as MeasureExtensionLike | null;
@@ -493,20 +505,43 @@ export const attachMeasureDistanceVisualFeedback = (
 
 		if (!measureActive) {
 			lastSnapId = null;
+			lastOriginKey = null;
 			pulses.length = 0;
+			originPulses.length = 0;
 			rafId = window.requestAnimationFrame(frame);
 			return;
 		}
 
 		applySnapperYellow(measureTool, viewer);
 
+		const current = measureTool?._currentMeasurement;
+		const hasOrigin = current?.hasPick?.(1) ?? false;
+		const hasSecondPoint = current?.hasPick?.(2) ?? false;
+		const now = performance.now();
+		let originPlacedThisFrame = false;
+
+		if (hasOrigin && current?.getPick) {
+			const origin = current.getPick(1);
+			const originKey = `${origin.x.toFixed(3)},${origin.y.toFixed(3)},${origin.z.toFixed(3)}`;
+			if (originKey !== lastOriginKey) {
+				playTone(MEASURE_ORIGIN_AUDIO_HZ);
+				originPulses.push({ startedAt: now, category: 'endpoint' });
+				if (originPulses.length > 6) {
+					originPulses.splice(0, originPulses.length - 6);
+				}
+				lastOriginKey = originKey;
+				originPlacedThisFrame = true;
+			}
+		} else {
+			lastOriginKey = null;
+		}
+
 		const snap = measureTool?._snapper?.getSnapResult?.();
 		const snapId = snapIdFromResult(snap);
 		const category = snapCategoryFromGeomType(snap?.geomType);
-		const now = performance.now();
 
 		if (snapId && snapId !== lastSnapId) {
-			if (category && MEASURE_SNAP_AUDIBLE.has(category)) {
+			if (!originPlacedThisFrame && category && MEASURE_SNAP_AUDIBLE.has(category)) {
 				playTone(MEASURE_SNAP_AUDIO_HZ[category] ?? 700);
 			}
 			pulses.push({ startedAt: now, category });
@@ -516,6 +551,12 @@ export const attachMeasureDistanceVisualFeedback = (
 			lastSnapId = snapId;
 		} else if (!snapId) {
 			lastSnapId = null;
+		}
+
+		if (hasOrigin && !hasSecondPoint && current?.getPick) {
+			const origin = current.getPick(1);
+			const originScale = measureTool?._snapper?.indicator?.setScale?.(origin) ?? 1;
+			drawSnapPulseRings(viewer, origin, originScale, now, originPulses);
 		}
 
 		if (snap?.intersectPoint && !snap.isEmpty?.()) {
