@@ -539,6 +539,140 @@ const CSS = `
 	opacity: 0.45;
 	cursor: not-allowed;
 }
+
+/* --- Staircase issue demo: pushpin + AI prompt --- */
+.priyam-staircase-demo-layer {
+	position: absolute;
+	inset: 0;
+	z-index: 2000;
+	pointer-events: none;
+	overflow: visible;
+}
+.priyam-staircase-pushpin,
+.priyam-staircase-ai-prompt {
+	position: absolute;
+	left: 0;
+	top: 0;
+	pointer-events: none;
+	transform: translate(-50%, -100%);
+}
+.priyam-staircase-pushpin {
+	z-index: 2;
+}
+.priyam-staircase-pushpin__body {
+	position: relative;
+	width: 63px;
+	height: 72px;
+}
+.priyam-staircase-pushpin__pin {
+	display: block;
+	width: 63px;
+	height: 72px;
+	object-fit: contain;
+}
+.priyam-staircase-ai-prompt {
+	width: 360px;
+	max-width: calc(100vw - 32px);
+	transform: none;
+	pointer-events: auto;
+	z-index: 3;
+}
+.priyam-staircase-ai-prompt__content {
+	display: flex;
+	flex-direction: column;
+	background: #ffffff;
+	border: 1px solid rgba(60, 60, 60, 0.1);
+	border-radius: 8px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+	overflow: hidden;
+}
+.priyam-staircase-ai-prompt__suggestion-wrap {
+	padding: 16px 16px 8px;
+}
+.priyam-staircase-ai-prompt__suggestion {
+	margin: 0;
+	padding: 8px 12px;
+	border-radius: 6px;
+	background: rgba(0, 0, 0, 0.04);
+	color: #3c3c3c;
+	font-family: 'Artifakt Element', 'ArtifaktElement', system-ui, sans-serif;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 20px;
+}
+.priyam-staircase-ai-prompt__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px;
+}
+.priyam-staircase-ai-prompt__assistant {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 24px;
+	padding: 2px 8px;
+	border-radius: 4px;
+	background: #ffffff;
+}
+.priyam-staircase-ai-prompt__assistant-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	flex: 0 0 auto;
+}
+.priyam-staircase-ai-prompt__assistant-icon > svg {
+	display: block;
+	width: 16px;
+	height: 16px;
+}
+.priyam-staircase-ai-prompt__assistant-label {
+	color: #3c3c3c;
+	font-family: 'Artifakt Element', 'ArtifaktElement', system-ui, sans-serif;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 16px;
+	white-space: nowrap;
+}
+.priyam-staircase-ai-prompt__caret {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 8px;
+	height: 8px;
+	flex: 0 0 auto;
+	transform: rotate(180deg);
+}
+.priyam-staircase-ai-prompt__caret > svg {
+	display: block;
+	width: 8px;
+	height: 8px;
+}
+.priyam-staircase-ai-prompt__accept {
+	flex: 0 0 auto;
+	height: 32px;
+	padding: 0 16px;
+	border: 0;
+	border-radius: 4px;
+	background: #006eaf;
+	color: #ffffff;
+	font-family: 'Artifakt Element', 'ArtifaktElement', system-ui, sans-serif;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 20px;
+	cursor: pointer;
+	transition: background-color 120ms ease;
+}
+.priyam-staircase-ai-prompt__accept:hover {
+	background: #005a8f;
+}
+.priyam-staircase-ai-prompt__accept:focus-visible {
+	outline: 2px solid #006eaf;
+	outline-offset: 2px;
+}
 `;
 
 export const ensureStylesInjected = (): void => {

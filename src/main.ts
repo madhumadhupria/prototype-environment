@@ -1,6 +1,7 @@
 import '../extension/ViewerEnvironmentExtension';
 import { VIEWER_ENVIRONMENT_EXTENSION_ID } from '../extension/ViewerEnvironmentExtension';
 import { applyCadBimBackdrop } from '../extension/applyViewerEnvironment';
+import { startStaircaseIssueDemo } from '../extension/viewerStaircaseIssueDemo';
 import { loadConfig } from './config';
 
 const statusEl = document.getElementById('status');
@@ -111,6 +112,7 @@ const init = async (): Promise<void> => {
 							} else {
 								viewer.addEventListener(Autodesk.Viewing.GEOMETRY_LOADED_EVENT, onReady, { once: true });
 							}
+							startStaircaseIssueDemo(viewer);
 						})
 						.catch((error: unknown) => {
 							const message = error instanceof Error ? error.message : String(error);
